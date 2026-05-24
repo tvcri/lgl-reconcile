@@ -1,12 +1,19 @@
 {
   "name": "lgl-reconcile",
   "version": "1.0.0",
-  "description": "",
+  "description": "Reconcile Club Express member records with Little Green Light constituents",
   "license": "MIT",
   "author": "",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "reconcile:report": "node reconcile.js --report",
+    "reconcile:dry-run": "node reconcile.js --reconcile --dry-run",
+    "reconcile": "node reconcile.js --reconcile"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.28.0",
+    "dotenv": "^16.4.5"
   }
 }

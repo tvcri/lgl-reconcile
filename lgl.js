@@ -12,6 +12,7 @@ async function lglGet(path, params = {}) {
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
+  console.log(`[LGL GET] ${url.toString()}`);
   const res = await fetch(url.toString(), {
     headers: {
       'Authorization': authHeader(),
@@ -99,4 +100,80 @@ export async function fetchConstituentDetails(ids, concurrency = 10) {
  */
 export async function patchConstituent(id, body) {
   return lglPatch(`/constituents/${id}`, body);
+}
+
+/**
+ * Fetch all groups for the account.
+ * Handles pagination defensively.
+ * @returns {Promise<Array>} Full array of group records
+ */
+export async function fetchAllGroups() {
+  const groups = [];
+  let offset = 0;
+
+  while (true) {
+    const data = await lglGet('/groups', { limit: LGL_PAGE_LIMIT, offset });
+    groups.push(...data.items);
+    if (groups.length >= data.total_items) break;
+    offset += data.items_count;
+  }
+
+  return groups;
+}
+
+/**
+ * Search constituents with advanced filtering via the LGL search API.
+ * @param {Object} criteria - Search criteria object
+ * @param {string} [criteria.name] - Constituent name search
+ * @param {string} [criteria.email] - Email address (eaddr)
+ * @param {string} [criteria.phone] - Phone number
+ * @param {string} [criteria.city] - City
+ * @param {string} [criteria.state] - State
+ * @param {string} [criteria.postalCode] - Postal code
+ * @param {string} [criteria.externalId] - External ID
+ * @param {0|1} [criteria.constituteType] - 0=Individual, 1=Organization
+ * @param {0|1} [criteria.membershipStatus] - 0=inactive, 1=active
+ * @param {string} [criteria.membershipLevels] - Comma-separated membership level IDs
+ * @param {string} [criteria.updatedFrom] - ISO 8601 date (YYYY-MM-DD)
+ * @param {string} [criteria.updatedTo] - ISO 8601 date (YYYY-MM-DD)
+ * @param {string} [criteria.customAttr] - Custom attribute filter "key|operator|value"
+ * @param {string} [criteria.customAttrInt] - Custom integer filter "key|operator|number[|number2]"
+ * @param {string} [criteria.keyword] - Category keyword ID
+ * @param {string} [criteria.groups] - Comma-separated group IDs
+ * @param {string} [criteria.expand] - Comma-separated expand fields: class_affiliations, relationships, street_addresses, phone_numbers, email_addresses, web_addresses, categories, groups, memberships, custom_attrs
+ * @param {string} [criteria.sort] - Sort field (name, external_id, lgl_id, date_created, date_updated, membership_level, membership_end_date_from); append ! to reverse
+ * @param {number} [criteria.limit] - Results per page (default 25)
+ * @param {number} [criteria.offset] - Pagination offset (default 0)
+ * @returns {Promise<Object>} Search results with items array and pagination info
+ */
+export async function searchConstituents(criteria = {}) {
+  const queryParts = [];
+
+  if (criteria.name) queryParts.push(`name=${encodeURIComponent(criteria.name)}`);
+  if (criteria.email) queryParts.push(`eaddr=${encodeURIComponent(criteria.email)}`);
+  if (criteria.phone) queryParts.push(`phone_number=${encodeURIComponent(criteria.phone)}`);
+  if (criteria.city) queryParts.push(`city=${encodeURIComponent(criteria.city)}`);
+  if (criteria.state) queryParts.push(`state=${encodeURIComponent(criteria.state)}`);
+  if (criteria.postalCode) queryParts.push(`postal_code=${encodeURIComponent(criteria.postalCode)}`);
+  if (criteria.externalId) queryParts.push(`external_id=${encodeURIComponent(criteria.externalId)}`);
+  if (criteria.constituteType !== undefined) queryParts.push(`constituent_type=${criteria.constituteType}`);
+  if (criteria.membershipStatus !== undefined) queryParts.push(`membership_status=${criteria.membershipStatus}`);
+  if (criteria.membershipLevels) queryParts.push(`membership_level=${encodeURIComponent(criteria.membershipLevels)}`);
+  if (criteria.updatedFrom) queryParts.push(`updated_from=${criteria.updatedFrom}`);
+  if (criteria.updatedTo) queryParts.push(`updated_to=${criteria.updatedTo}`);
+  if (criteria.customAttr) queryParts.push(`custom_attr=${encodeURIComponent(criteria.customAttr)}`);
+  if (criteria.customAttrInt) queryParts.push(`custom_attr_int=${encodeURIComponent(criteria.customAttrInt)}`);
+  if (criteria.keyword) queryParts.push(`keyword=${criteria.keyword}`);
+  if (criteria.groups) queryParts.push(`groups=${encodeURIComponent(criteria.groups)}`);
+
+  const params = {};
+  if (queryParts.length > 0) {
+    params['q[]'] = queryParts.join(';');
+  }
+  if (criteria.expand) params['expand'] = criteria.expand;
+  if (criteria.sort) params['sort'] = criteria.sort;
+  if (criteria.limit !== undefined) params['limit'] = criteria.limit;
+  if (criteria.offset !== undefined) params['offset'] = criteria.offset;
+
+  return lglGet('/constituents/search', params);
 }
