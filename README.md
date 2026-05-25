@@ -2,6 +2,16 @@
 
 Reconcile Club Express (CE) member and service provider records against Little Green Light (LGL) constituents. Identifies matches, validates group membership, compares addresses, and writes results to Google Sheets.
 
+## ⚠️ Important: --reconcile Not Yet Implemented
+
+The `--reconcile` flag and auto-update functionality have **not been implemented**. Currently:
+
+- ✅ **--report** works: Generate full reconciliation report and write to Google Sheets
+- ❌ **--reconcile** not implemented: Flag exists but auto-update logic is not connected to LGL API
+- ❌ **--dry-run** not functional: Currently just a flag, no preview output
+
+Use `--report` to see all conflicts and results in Google Sheets. Manual updates to LGL are required.
+
 ## Quick Start
 
 ### Setup
@@ -30,22 +40,16 @@ Reconcile Club Express (CE) member and service provider records against Little G
 ### Run
 
 ```bash
-# Generate reconciliation report
+# Generate reconciliation report and write to Google Sheets
 npm run reconcile:report
-
-# Preview auto-updates (dry-run)
-npm run reconcile:dry-run
-
-# Apply auto-reconcilable updates to LGL
-npm run reconcile
 ```
 
 Or use the underlying command:
 ```bash
 node reconcile.js --report
-node reconcile.js --reconcile --dry-run
-node reconcile.js --reconcile
 ```
+
+**Note**: The `npm run reconcile:dry-run` and `npm run reconcile` scripts are available but the auto-update functionality is not yet implemented.
 
 ## What It Does
 
@@ -230,16 +234,18 @@ When two addresses are similar but not identical:
 ```bash
 node reconcile.js (--report | --reconcile) [OPTIONS]
 
-Required:
-  --report              Generate reconciliation report and write to Sheets
-  --reconcile           Apply auto-reconcilable updates to LGL (requires --dry-run first)
+Required (only --report is functional):
+  --report              Generate reconciliation report and write to Google Sheets ✅ WORKING
+  --reconcile           Apply auto-reconcilable updates to LGL ❌ NOT IMPLEMENTED
 
 Options:
-  --dry-run             Preview updates without applying (use with --reconcile)
-  --no-claude-api       Skip Claude address evaluation (all ambiguous → Needs Review)
-  --no-cache            Ignore cached API responses and Claude verdicts, fetch fresh
-  --debug               Verbose output for matching logic
+  --dry-run             Preview updates without applying ❌ NOT IMPLEMENTED
+  --no-claude-api       Skip Claude address evaluation (all ambiguous → Needs Review) ✅ WORKING
+  --no-cache            Ignore cached API responses and Claude verdicts, fetch fresh ✅ WORKING
+  --debug               Verbose output for matching logic ✅ WORKING
 ```
+
+**Currently Supported**: `node reconcile.js --report [--no-claude-api] [--no-cache] [--debug]`
 
 ## Environment Variables
 
