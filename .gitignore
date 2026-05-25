@@ -1,4 +1,5 @@
 output/
+lgl-cache/
 node_modules/
 .env
 .env.local

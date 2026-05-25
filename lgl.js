@@ -1,5 +1,14 @@
+import fs from 'fs';
+
 const LGL_BASE = 'https://api.littlegreenlight.com/api/v1';
 const LGL_PAGE_LIMIT = 2500;
+const LGL_CACHE_DIR = 'lgl-cache';
+
+let CACHE_ENABLED = true;
+
+export function setUseCache(enabled) {
+  CACHE_ENABLED = enabled;
+}
 
 function authHeader() {
   const key = process.env.LGL_API_KEY;
@@ -7,7 +16,65 @@ function authHeader() {
   return 'Basic ' + Buffer.from(`${key}:`).toString('base64');
 }
 
+/**
+ * Generate a cache key from a path and parameters.
+ */
+function getCacheKey(path, params) {
+  const paramsStr = Object.entries(params)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('&');
+  const key = `${path}?${paramsStr}`.replace(/[^a-zA-Z0-9-_.]/g, '_');
+  return key;
+}
+
+/**
+ * Load cached API response if it exists.
+ */
+function getCachedResponse(path, params) {
+  const key = getCacheKey(path, params);
+  const filePath = `${LGL_CACHE_DIR}/${key}.json`;
+
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.warn(`Failed to read cache file ${filePath}: ${e.message}`);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Save API response to cache.
+ */
+function cacheResponse(path, params, data) {
+  if (!fs.existsSync(LGL_CACHE_DIR)) {
+    fs.mkdirSync(LGL_CACHE_DIR, { recursive: true });
+  }
+
+  const key = getCacheKey(path, params);
+  const filePath = `${LGL_CACHE_DIR}/${key}.json`;
+
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.warn(`Failed to write cache file ${filePath}: ${e.message}`);
+  }
+}
+
 async function lglGet(path, params = {}) {
+  // Check cache first if enabled
+  if (CACHE_ENABLED) {
+    const cached = getCachedResponse(path, params);
+    if (cached) {
+      console.log(`[LGL GET] ${path} (from cache)`);
+      return cached;
+    }
+  }
+
   const url = new URL(`${LGL_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
@@ -22,7 +89,14 @@ async function lglGet(path, params = {}) {
   if (!res.ok) {
     throw new Error(`LGL API error ${res.status} on GET ${path}: ${await res.text()}`);
   }
-  return res.json();
+  const json = await res.json();
+
+  // Cache the response
+  if (CACHE_ENABLED) {
+    cacheResponse(path, params, json);
+  }
+
+  return json;
 }
 
 async function lglPatch(path, body) {
